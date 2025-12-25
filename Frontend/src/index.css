@@ -2,12 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-    background-color: #0f172a;
-    color: white;
-}
+@layer base {
+  :root {
+    color-scheme: dark;
+    --background: 15 23 42;
+    --foreground: 248 250 252;
+  }
 
-body {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-slate-900 text-slate-50 antialiased;
     margin: 0;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-950;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-800 rounded-full border-2 border-slate-950 hover:bg-slate-700 transition-colors;
+  }
+
+  /* Selection Color */
+  ::selection {
+    @apply bg-blue-500/30 text-blue-200;
+  }
 }
