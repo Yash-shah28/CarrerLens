@@ -1,17 +1,27 @@
 import express from "express"
-import dotenv from "dotenv"
-import { connectDB } from "./DB/connectDb.js";
+import cors from "cors"
+import cookieParser from "cookie-parser"
+import userRouter from './routes/user.routes.js'
+import { errorHandler } from "./middlewares/error.middleware.js"
 
-dotenv.config();
-connectDB();
+const app = express()
 
-const app = express();
+app.use(cors({
+    origin: process.env.CORS_ORIGIN,
+    credentials: true
+}))
 
-app.use('/', (req, res) => {
-    res.send("Our API")
-})
+app.use(express.json({ limit: "16kb" }))
+app.use(express.urlencoded({ extended: true, limit: "16kb" }))
+app.use(express.static("public"))
+app.use(cookieParser())
 
-app.listen(3000, () => {
-    console.log("Server running on port 3000");
-});
 
+
+//routes declaration
+app.use("/api/v1/users", userRouter)
+
+// global error handler
+app.use(errorHandler)
+
+export { app }
