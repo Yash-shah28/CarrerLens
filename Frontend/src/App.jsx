@@ -15,6 +15,8 @@ const Dashboard = lazy(() => import('./pages/Dashboard'));
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 
+import CustomCursor from './components/CustomCursor';
+
 const AppContent = () => {
   const { loading } = useUser();
 
@@ -24,7 +26,9 @@ const AppContent = () => {
 
   return (
     <Router>
-      <div className="min-h-screen bg-slate-900 text-white">
+      <div className="min-h-screen bg-slate-900 text-white relative overflow-hidden">
+        <div className="noise-overlay" />
+        <CustomCursor />
         <Navbar />
         <Routes>
           {/* Public Routes */}
