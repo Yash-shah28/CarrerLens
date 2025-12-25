@@ -37,3 +37,112 @@
     @apply bg-blue-500/30 text-blue-200;
   }
 }
+
+@layer utilities {
+  .bg-glass {
+    @apply bg-slate-800/40 backdrop-blur-xl border border-slate-700/50;
+  }
+
+  .animate-slow-pulse {
+    animation: pulse 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .noise-overlay {
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    right: -50%;
+    bottom: -50%;
+    width: 200%;
+    height: 200%;
+    background: transparent url('http://assets.iceable.com/img/noise-transparent.png') repeat 0 0;
+    animation: noise 0.2s infinite;
+    opacity: 0.05;
+    z-index: 9999;
+    pointer-events: none;
+  }
+
+  @keyframes noise {
+    0% {
+      transform: translate(0, 0)
+    }
+
+    10% {
+      transform: translate(-5%, -5%)
+    }
+
+    20% {
+      transform: translate(-10%, 5%)
+    }
+
+    30% {
+      transform: translate(5%, -10%)
+    }
+
+    40% {
+      transform: translate(-5%, 15%)
+    }
+
+    50% {
+      transform: translate(-10%, 5%)
+    }
+
+    60% {
+      transform: translate(15%, 0)
+    }
+
+    70% {
+      transform: translate(0, 10%)
+    }
+
+    80% {
+      transform: translate(-15%, 0)
+    }
+
+    90% {
+      transform: translate(10%, 5%)
+    }
+
+    100% {
+      transform: translate(5%, 0)
+    }
+  }
+
+  .custom-cursor-active * {
+    cursor: none !important;
+  }
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-20px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.floating {
+  animation: float 6s ease-in-out infinite;
+}
+
+.reveal-on-load {
+  animation: fadeInUp 0.8s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

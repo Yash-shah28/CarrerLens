@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import Skeleton from './ui/Skeleton';
 import { Menu, X, LogOut, User as UserIcon } from 'lucide-react';
+import Magnetic from './Magnetic';
 
 const Navbar = () => {
     const { user, logout, loading } = useUser();
@@ -16,46 +17,56 @@ const Navbar = () => {
     };
 
     return (
-        <nav className="bg-slate-900/80 border-b border-slate-800 sticky top-0 z-50 backdrop-blur-md">
+        <nav className="bg-slate-900/60 border-b border-slate-800/50 sticky top-0 z-50 backdrop-blur-xl">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center h-16">
-                    <Link to="/dashboard" className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent flex items-center gap-2">
-                        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                            <div className="w-4 h-4 border-2 border-white rounded-sm rotate-45"></div>
-                        </div>
-                        CarrerLens
-                    </Link>
+                <div className="flex justify-between items-center h-20">
+                    <Magnetic strength={0.2}>
+                        <Link to="/dashboard" className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent flex items-center gap-3 group">
+                            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center group-hover:rotate-[360deg] transition-transform duration-700 ease-in-out">
+                                <div className="w-5 h-5 border-2 border-white rounded-md rotate-45 group-hover:scale-110 transition-transform"></div>
+                            </div>
+                            <span className="tracking-tight">CarrerLens</span>
+                        </Link>
+                    </Magnetic>
 
                     {/* Desktop Menu */}
-                    <div className="hidden md:flex items-center gap-8">
+                    <div className="hidden md:flex items-center gap-10">
                         {loading ? (
                             <Skeleton className="h-8 w-24 rounded-lg" />
                         ) : user ? (
-                            <div className="flex items-center gap-6">
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-full border border-slate-700">
-                                    <div className="w-6 h-6 bg-blue-500/20 rounded-full flex items-center justify-center">
-                                        <UserIcon className="w-3.5 h-3.5 text-blue-400" />
+                            <div className="flex items-center gap-8">
+                                <Magnetic strength={0.3}>
+                                    <div className="flex items-center gap-2.5 px-4 py-2 bg-slate-800/40 rounded-full border border-slate-700/50 hover:border-blue-500/30 transition-all cursor-pointer">
+                                        <div className="w-7 h-7 bg-blue-500/20 rounded-full flex items-center justify-center">
+                                            <UserIcon className="w-4 h-4 text-blue-400" />
+                                        </div>
+                                        <span className="text-slate-300 text-sm font-medium">
+                                            Hi, <span className="text-white font-bold">{user.fullName.split(' ')[0]}</span>
+                                        </span>
                                     </div>
-                                    <span className="text-slate-300 text-sm">
-                                        Hi, <span className="text-white font-medium">{user.fullName.split(' ')[0]}</span>
-                                    </span>
-                                </div>
-                                <button
-                                    onClick={handleLogout}
-                                    className="flex items-center gap-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white px-4 py-2 rounded-xl transition-all duration-300 border border-red-500/20 text-sm font-medium"
-                                >
-                                    <LogOut className="w-4 h-4" />
-                                    Logout
-                                </button>
+                                </Magnetic>
+                                <Magnetic strength={0.4}>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="flex items-center gap-2 text-slate-400 hover:text-red-400 px-2 py-2 rounded-xl transition-all duration-300 group"
+                                    >
+                                        <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                                        <span className="text-sm font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all">Logout</span>
+                                    </button>
+                                </Magnetic>
                             </div>
                         ) : (
-                            <div className="flex items-center gap-6">
-                                <Link to="/login" className="text-slate-300 hover:text-white transition-colors text-sm font-medium">
-                                    Login
-                                </Link>
-                                <Link to="/register" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl transition-all duration-300 shadow-lg shadow-blue-600/20 text-sm font-medium">
-                                    Get Started
-                                </Link>
+                            <div className="flex items-center gap-8">
+                                <Magnetic strength={0.3}>
+                                    <Link to="/login" className="text-slate-400 hover:text-white transition-colors text-sm font-bold uppercase tracking-widest">
+                                        Login
+                                    </Link>
+                                </Magnetic>
+                                <Magnetic strength={0.5}>
+                                    <Link to="/register" className="bg-blue-600 hover:bg-blue-500 text-white px-7 py-3 rounded-2xl transition-all duration-300 shadow-lg shadow-blue-600/20 text-sm font-bold uppercase tracking-widest">
+                                        Get Started
+                                    </Link>
+                                </Magnetic>
                             </div>
                         )}
                     </div>
