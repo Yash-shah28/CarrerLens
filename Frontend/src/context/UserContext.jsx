@@ -28,7 +28,10 @@ export const UserProvider = ({ children }) => {
             },
             (error) => {
                 const errorMessage = error.response?.data?.message || error.message || "An unexpected error occurred";
-                showSnackbar(errorMessage, 'error');
+                // Don't show snackbar for 401 errors on current-user check as it's expected if not logged in
+                if (!(error.response?.status === 401 && error.config.url.includes('/current-user'))) {
+                    showSnackbar(errorMessage, 'error');
+                }
                 return Promise.reject(error);
             }
         );
@@ -67,8 +70,20 @@ export const UserProvider = ({ children }) => {
         }
     };
 
+    const refreshCurrentUser = async () => {
+        try {
+            setLoading(true);
+            const response = await api.get("/current-user");
+            setUser(response.data.data);
+        } catch (error) {
+            setUser(null);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        setLoading(false);
+        refreshCurrentUser();
     }, []);
 
     return (

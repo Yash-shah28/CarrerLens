@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+import Skeleton from './ui/Skeleton';
 
 const Navbar = () => {
-    const { user, logout } = useUser();
+    const { user, logout, loading } = useUser();
     const navigate = useNavigate();
 
     const handleLogout = async () => {
@@ -13,11 +14,13 @@ const Navbar = () => {
 
     return (
         <nav className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-md bg-slate-900/80">
-            <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">
+            <Link to="/dashboard" className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">
                 CarrerLens
             </Link>
             <div className="flex items-center gap-6">
-                {user ? (
+                {loading ? (
+                    <Skeleton className="h-8 w-20 rounded-lg" />
+                ) : user ? (
                     <>
                         <span className="text-slate-300">Welcome, <span className="text-white font-medium">{user.fullName}</span></span>
                         <button
