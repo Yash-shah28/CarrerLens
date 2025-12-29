@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 from database import connect_to_mongo, close_mongo_connection
 from routes import router
+from app.api.resume import router as resume_router
 
 app = FastAPI(title="FastAPI MongoDB Integration")
+
+app.include_router(resume_router, prefix="/api/resume", tags=["Resume"])
 
 @app.on_event("startup")
 async def startup_event():
