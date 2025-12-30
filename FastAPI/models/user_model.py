@@ -18,10 +18,3 @@ class UserModel(BaseModel):
         arbitrary_types_allowed=True,
         json_encoders = {ObjectId: str} # Fallback for older Pydantic behavior
     )
-
-class UserCreate(BaseModel):
-    name: str
-    email: str
-    age: int
-
-
