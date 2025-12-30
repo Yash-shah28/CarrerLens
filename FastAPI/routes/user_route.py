@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from models import UserModel, UserCreate
+from models.user_model import UserModel
+from schemas.user import UserCreate
 from database import get_database
 from bson import ObjectId
 from typing import List
@@ -60,4 +61,3 @@ async def delete_user(user_id: str):
         raise HTTPException(status_code=404, detail="User not found")
     
     return {"message": "User deleted successfully"}
-
