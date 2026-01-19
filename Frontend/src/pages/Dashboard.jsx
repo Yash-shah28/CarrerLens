@@ -1,5 +1,7 @@
+/* eslint-disable no-unused-vars */
 import React from 'react';
 import { useUser } from '../context/UserContext';
+import { useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
     Briefcase,
@@ -9,12 +11,14 @@ import {
     Award,
     ArrowUpRight
 } from 'lucide-react';
+// framer-motion import
 import { motion, useMotionValue, useMotionTemplate } from 'framer-motion';
 import { FadeIn, ScaleIn, Floating } from '../components/Animations';
 import Magnetic from '../components/Magnetic';
 
 const Dashboard = () => {
     const { user } = useUser();
+    const navigate = useNavigate();
     const mouseX = useMotionValue(0);
     const mouseY = useMotionValue(0);
 
@@ -97,7 +101,10 @@ const Dashboard = () => {
                             <FadeIn delay={0.4}>
                                 <div className="flex gap-4">
                                     <Magnetic>
-                                        <button className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-lg shadow-blue-600/20">
+                                        <button
+                                            onClick={() => navigate('/resume-selection')}
+                                            className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-bold transition-all shadow-lg shadow-blue-600/20"
+                                        >
                                             Get Started
                                         </button>
                                     </Magnetic>

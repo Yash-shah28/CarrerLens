@@ -16,10 +16,11 @@
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.4.2",
     "axios": "^1.7.9",
-    "framer-motion": "^12.23.26",
+    "framer-motion": "^12.27.0",
     "lucide-react": "^0.469.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-pdf": "^10.3.0",
     "react-router-dom": "^7.1.1",
     "three": "^0.182.0"
   },

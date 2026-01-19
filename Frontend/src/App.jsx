@@ -11,6 +11,10 @@ import './index.css';
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const ResumeUpload = lazy(() => import('./pages/ResumeUpload'));
+const ResumeEditor = lazy(() => import('./pages/ResumeEditor'));
+const ResumeSelection = lazy(() => import('./pages/ResumeSelection'));
+const ResumeTemplates = lazy(() => import('./pages/ResumeTemplates'));
 
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
@@ -45,11 +49,30 @@ const AppContent = () => {
             } />
           </Route>
 
-          {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={
               <Suspense fallback={<DashboardSkeleton />}>
                 <Dashboard />
+              </Suspense>
+            } />
+            <Route path="/resume-selection" element={
+              <Suspense fallback={<DashboardSkeleton />}>
+                <ResumeSelection />
+              </Suspense>
+            } />
+            <Route path="/resume-templates" element={
+              <Suspense fallback={<DashboardSkeleton />}>
+                <ResumeTemplates />
+              </Suspense>
+            } />
+            <Route path="/resume-upload" element={
+              <Suspense fallback={<DashboardSkeleton />}>
+                <ResumeUpload />
+              </Suspense>
+            } />
+            <Route path="/resume-editor" element={
+              <Suspense fallback={<DashboardSkeleton />}>
+                <ResumeEditor />
               </Suspense>
             } />
           </Route>
