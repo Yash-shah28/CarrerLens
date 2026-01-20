@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI 
 from database import connect_to_mongo, close_mongo_connection
 from routes.user_route import router as user_router
 from routes.resume_route import router as resume_router
