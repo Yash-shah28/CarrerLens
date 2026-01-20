@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useUser } from '../context/UserContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, ArrowRight, User } from 'lucide-react';
-import {  useMotionValue, useMotionTemplate } from 'framer-motion';
+// eslint-disable-next-line no-unused-vars
+import { motion, useMotionValue, useMotionTemplate } from 'framer-motion';
 import { FadeIn, ScaleIn } from '../components/Animations';
 
 const Login = () => {
@@ -35,7 +36,7 @@ const Login = () => {
             await login(formData);
             navigate('/dashboard');
         } catch (err) {
-            print(err);
+            console.error(err);
             // Error is handled by global Snackbar interceptor
         } finally {
             setLoading(false);

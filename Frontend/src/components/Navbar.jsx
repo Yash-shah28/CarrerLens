@@ -41,7 +41,7 @@ const Navbar = () => {
                                             <UserIcon className="w-4 h-4 text-blue-400" />
                                         </div>
                                         <span className="text-slate-300 text-sm font-medium">
-                                            Hi, <span className="text-white font-bold">{user.fullName.split(' ')[0]}</span>
+                                            Hi, <span className="text-white font-bold">{user.fullName?.split(' ')[0] || user.username}</span>
                                         </span>
                                     </div>
                                 </Magnetic>
