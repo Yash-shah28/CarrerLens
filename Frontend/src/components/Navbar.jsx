@@ -18,16 +18,18 @@ const Navbar = () => {
 
     return (
         <nav className="bg-slate-900/60 border-b border-slate-800/50 sticky top-0 z-50 backdrop-blur-xl">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center h-20">
-                    <Magnetic strength={0.2}>
-                        <Link to="/dashboard" className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent flex items-center gap-3 group">
-                            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center group-hover:rotate-[360deg] transition-transform duration-700 ease-in-out">
-                                <div className="w-5 h-5 border-2 border-white rounded-md rotate-45 group-hover:scale-110 transition-transform"></div>
-                            </div>
-                            <span className="tracking-tight">CarrerLens</span>
+            <div className="w-full px-6 lg:px-10">
+                <div className="flex justify-between items-center h-24">
+                    <div className="flex items-center gap-3">
+                        <Link to="/dashboard" className="shrink-0 hover:opacity-80 transition-opacity">
+                            <img src="/Logo.png" alt="CarrerLens" className="h-10 w-auto " />
                         </Link>
-                    </Magnetic>
+                        <Magnetic strength={0.2}>
+                            <Link to="/dashboard" className=" text-2xl font-bold bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-600 bg-clip-text text-transparent">
+                                CarrerLens
+                            </Link>
+                        </Magnetic>
+                    </div>
 
                     {/* Desktop Menu */}
                     <div className="hidden md:flex items-center gap-10">
