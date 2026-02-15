@@ -1,5 +1,4 @@
 /* eslint-disable no-unused-vars */
-import ReactMock from 'react'; // Renaming to avoid conflict if needed, though this is a full rewrite.
 import React from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -7,6 +6,8 @@ import { Check, ArrowRight, Layout, Star, ShieldCheck } from 'lucide-react';
 import { FadeIn, ScaleIn } from '../components/Animations';
 import Magnetic from '../components/Magnetic';
 import ResumePreview from '../components/ResumePreview';
+
+import { MOCK_RESUME_DATA } from '../data/resumeData';
 
 // Mock Template Data
 const TEMPLATES = [
@@ -36,17 +37,18 @@ const ResumeTemplates = () => {
     const mode = location.state?.mode || searchParams.get('mode') || 'build'; // 'build' or 'preview'
     const { fileUrl, fileName, parsedData } = location.state || {};
 
+    // Use Parsed Data if available (Upload flow), otherwise use Mock Data (Build flow)
+    const previewData = parsedData || MOCK_RESUME_DATA;
+
     const handleSelect = (templateId) => {
         // Navigate to Editor
-        // Pass the file, filename, and importantly the templateId
-        // Also pass parsedData if available so Editor can initialize with it
         navigate('/resume-editor', {
             state: {
                 templateId,
                 fileUrl,
                 fileName,
                 isNew: mode === 'build',
-                parsedData
+                parsedData: parsedData // Pass parsedData only if it exists, Editor should handle initialization
             }
         });
     };
@@ -66,10 +68,7 @@ const ResumeTemplates = () => {
                             Choose Your <span className="text-blue-500">Structure</span>
                         </h1>
                         <p className="text-slate-400 max-w-2xl mx-auto text-lg">
-                            {parsedData
-                                ? "Here's how your resume looks in different styles. Select the one that fits you best."
-                                : "Select a template to get started. All templates are optimized for Applicant Tracking Systems."
-                            }
+                            Select a template to get started. All templates are optimized for Applicant Tracking Systems.
                         </p>
                     </FadeIn>
                 </div>
@@ -84,33 +83,10 @@ const ResumeTemplates = () => {
                             >
                                 {/* Preview Area */}
                                 <div className="aspect-[1/1.414] bg-slate-200 relative overflow-hidden group-hover:opacity-100 transition-opacity">
-                                    {parsedData ? (
-                                        // Live Preview of Parsed Data
-                                        <div className="w-full h-full transform scale-[0.4] origin-top-left" style={{ width: '250%', height: '250%' }}>
-                                            <ResumePreview data={parsedData} templateId={template.id} />
-                                        </div>
-                                    ) : (
-                                        // Mock Skeleton (only if no data)
-                                        <div className="w-full h-full bg-white shadow-sm flex flex-col p-2 space-y-2 select-none pointer-events-none opacity-80">
-                                            <div className={`h-8 w-1/3 bg-${template.color}-100 rounded-sm mb-2`} />
-                                            <div className="space-y-1">
-                                                <div className="h-1.5 w-full bg-slate-100 rounded-sm" />
-                                                <div className="h-1.5 w-5/6 bg-slate-100 rounded-sm" />
-                                            </div>
-                                            <div className="flex gap-2 flex-1 mt-2">
-                                                <div className="w-1/3 space-y-2">
-                                                    <div className="h-20 bg-slate-50 rounded-sm" />
-                                                </div>
-                                                <div className="w-2/3 space-y-2">
-                                                    <div className="h-4 w-1/2 bg-slate-100 rounded-sm" />
-                                                    <div className="space-y-1">
-                                                        <div className="h-1.5 w-full bg-slate-50 rounded-sm" />
-                                                        <div className="h-1.5 w-full bg-slate-50 rounded-sm" />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
+                                    {/* Live Preview of Parsed or Mock Data */}
+                                    <div className="w-full h-full transform scale-[0.4] origin-top-left" style={{ width: '250%', height: '250%' }}>
+                                        <ResumePreview data={previewData} templateId={template.id} />
+                                    </div>
 
                                     {/* Overlay on Hover */}
                                     <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center p-4 backdrop-blur-[2px]">

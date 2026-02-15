@@ -22,11 +22,11 @@ const Navbar = () => {
                 <div className="flex justify-between items-center h-24">
                     <div className="flex items-center gap-3">
                         <Link to="/dashboard" className="shrink-0 hover:opacity-80 transition-opacity">
-                            <img src="/Logo.png" alt="CarrerLens" className="h-10 w-auto " />
+                            <img src="/Logo.png" alt="CareerLens" className="h-10 w-auto " />
                         </Link>
                         <Magnetic strength={0.2}>
                             <Link to="/dashboard" className=" text-2xl font-bold bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-600 bg-clip-text text-transparent">
-                                CarrerLens
+                                CareerLens
                             </Link>
                         </Magnetic>
                     </div>
