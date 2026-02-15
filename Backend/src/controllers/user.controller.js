@@ -65,13 +65,14 @@ const loginUser = asyncHandler(async (req, res) => {
     // send cookie
 
     const { username, email, password } = req.body
+    console.log("Login attempt for:", username || email);
 
     if (!(username || email)) {
         throw new ApiError(400, "username or email is required")
     }
 
     // Identify what the user provided (could be username or email)
-    const identifier = username || email;
+    const identifier = (username || email)?.trim();
 
     const user = await User.findOne({
         $or: [
