@@ -23,7 +23,7 @@ const ResumeSelection = () => {
             description: 'Start from scratch with our intelligent builder. Perfect for creating a fresh, optimized profile.',
             icon: PenTool,
             color: 'blue',
-            action: () => navigate('/resume-templates?mode=build'),
+            action: () => navigate('/job-description'),
             features: ['Step-by-step guidance', 'Real-time ATS Score', 'Smart Suggestions']
         },
         {

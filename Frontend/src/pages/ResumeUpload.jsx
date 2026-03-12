@@ -331,8 +331,8 @@ const ResumeUpload = () => {
 
                 setUploading(false);
 
-                // Navigate to Templates page
-                navigate('/resume-templates', {
+                // Navigate to Job Description page
+                navigate('/job-description', {
                     state: {
                         mode: 'preview',
                         fileUrl, // Now a specific Base64 string
@@ -459,7 +459,7 @@ const ResumeUpload = () => {
                                             onClick={handleContinue}
                                             className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold text-lg transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 group"
                                         >
-                                            Next: Select Template
+                                            Next: Job Description
                                             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                                         </button>
                                     </Magnetic>

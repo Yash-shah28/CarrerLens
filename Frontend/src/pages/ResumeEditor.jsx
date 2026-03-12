@@ -71,9 +71,8 @@ const ResumeEditor = () => {
     const [numPages, setNumPages] = useState(null);
     const [pageNumber, setPageNumber] = useState(1);
     const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-    const [zoom, setZoom] = useState(1.0);
+    const [isFullScreen, setIsFullScreen] = useState(false);
     const containerRef = useRef(null);
-
     const [viewMode, setViewMode] = useState(fileUrl ? 'pdf' : 'template');
 
     const onDocumentLoadSuccess = ({ numPages }) => {
@@ -1141,19 +1140,11 @@ const ResumeEditor = () => {
                             <div className="flex items-center">
                                 <div className="flex items-center p-0.5 bg-slate-700 rounded-lg border border-slate-600">
                                     <button
-                                        onClick={() => setZoom(prev => Math.max(0.2, prev - 0.1))}
-                                        className="w-6 h-6 flex items-center justify-center hover:bg-slate-600 rounded-md text-slate-300 transition-all"
+                                        onClick={() => setIsFullScreen(true)}
+                                        className="h-6 px-3 flex items-center justify-center hover:bg-slate-600 rounded-md text-slate-300 transition-all gap-1.5"
                                     >
-                                        <Minus className="w-3 h-3" />
-                                    </button>
-                                    <span className="w-8 text-center text-[10px] font-semibold text-slate-200 tabular-nums">
-                                        {Math.round(zoom * 100)}%
-                                    </span>
-                                    <button
-                                        onClick={() => setZoom(prev => Math.min(2.0, prev + 0.1))}
-                                        className="w-6 h-6 flex items-center justify-center hover:bg-slate-600 rounded-md text-slate-300 transition-all"
-                                    >
-                                        <Plus className="w-3 h-3" />
+                                        <Maximize2 className="w-3 h-3" />
+                                        <span className="text-[10px] font-bold">View</span>
                                     </button>
                                 </div>
                             </div>
@@ -1176,11 +1167,11 @@ const ResumeEditor = () => {
                                             error={<div className="text-red-500 text-xs mt-10">Failed to load</div>}
                                             className="w-full flex justify-center shadow-lg"
                                         >
-                                            <div className="origin-top transition-transform duration-200" style={{ width: containerSize.width ? containerSize.width * zoom * 0.9 : '90%' }}>
+                                            <div className="origin-top transition-transform duration-200" style={{ width: containerSize.width ? containerSize.width * 0.9 : '90%' }}>
                                                 {containerSize.width > 0 && (
                                                     <Page
                                                         pageNumber={pageNumber}
-                                                        width={containerSize.width * zoom * 0.9}
+                                                        width={containerSize.width * 0.9}
                                                         renderTextLayer={false}
                                                         renderAnnotationLayer={false}
                                                         className="bg-white rounded-sm overflow-hidden"
@@ -1214,7 +1205,7 @@ const ResumeEditor = () => {
                                         )}
                                     </div>
                                 ) : viewMode === 'template' ? (
-                                    <div className="min-h-full flex justify-center py-8 px-4" style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}>
+                                    <div className="min-h-full flex justify-center py-8 px-4" style={{ transformOrigin: 'top center' }}>
                                         <div className="w-[210mm] min-h-[297mm] bg-white shadow-2xl origin-top" style={{ width: containerSize.width ? containerSize.width * 0.9 : '210mm' }}>
                                             <div id="resume-preview-content" className="w-full h-full bg-white">
                                                 <ResumePreview data={previewData} templateId={templateId} />
@@ -1223,7 +1214,7 @@ const ResumeEditor = () => {
                                     </div>
                                 ) : viewMode === 'pdf' && parsedData?.formattedText ? (
                                     <div className="min-h-full flex justify-center py-8 px-4">
-                                        <div className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-8 whitespace-pre-wrap font-mono text-[10px] text-slate-800" style={{ transform: `scale(${zoom})`, transformOrigin: 'top center', width: containerSize.width ? containerSize.width * 0.9 : '210mm' }}>
+                                        <div className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-8 whitespace-pre-wrap font-mono text-[10px] text-slate-800" style={{ transformOrigin: 'top center', width: containerSize.width ? containerSize.width * 0.9 : '210mm' }}>
                                             {parsedData.formattedText}
                                         </div>
                                     </div>
@@ -1240,6 +1231,44 @@ const ResumeEditor = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Full Screen View Overlay */}
+            {isFullScreen && (
+                <div className="fixed inset-0 z-50 bg-slate-900/95 backdrop-blur-sm flex flex-col justify-center items-center p-4 md:p-10">
+                    <button 
+                        onClick={() => setIsFullScreen(false)}
+                        className="absolute top-6 right-6 p-2 bg-slate-800 text-slate-300 hover:text-white rounded-full hover:bg-slate-700 transition-colors z-50 shadow-lg border border-slate-700"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+                    
+                    <div className="w-full max-w-5xl h-full bg-slate-800/50 rounded-2xl overflow-y-auto custom-scrollbar-light relative shadow-2xl flex justify-center py-10 border border-slate-700/50">
+                        {viewMode === 'pdf' && fileUrl ? (
+                            <Document
+                                file={fileUrl}
+                                loading={<div className="animate-spin text-blue-500 rounded-full border-2 border-current border-t-transparent h-8 w-8 mt-20" />}
+                                className="w-full flex justify-center"
+                            >
+                                <Page 
+                                    pageNumber={pageNumber} 
+                                    width={typeof window !== 'undefined' ? window.innerWidth * 0.6 : 800} 
+                                    renderTextLayer={false} 
+                                    renderAnnotationLayer={false}
+                                    className="shadow-2xl"
+                                />
+                            </Document>
+                        ) : viewMode === 'template' ? (
+                            <div className="w-[210mm] h-max min-h-[297mm] bg-white shadow-2xl mx-auto transform scale-[1.1] origin-top mb-10">
+                                <ResumePreview data={previewData} templateId={templateId} />
+                            </div>
+                        ) : viewMode === 'pdf' && parsedData?.formattedText ? (
+                            <div className="w-[210mm] h-max whitespace-pre-wrap font-mono text-sm text-slate-800 p-10 bg-white mx-auto shadow-2xl">
+                                {parsedData.formattedText}
+                            </div>
+                        ) : null}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
