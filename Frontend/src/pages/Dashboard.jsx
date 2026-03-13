@@ -109,7 +109,10 @@ const Dashboard = () => {
                                         </button>
                                     </Magnetic>
                                     <Magnetic>
-                                        <button className="bg-slate-800 hover:bg-slate-700 text-white px-8 py-4 rounded-2xl font-bold transition-all border border-slate-700">
+                                        <button 
+                                            onClick={() => navigate('/roadmap')}
+                                            className="bg-slate-800 hover:bg-slate-700 text-white px-8 py-4 rounded-2xl font-bold transition-all border border-slate-700"
+                                        >
                                             View Roadmap
                                         </button>
                                     </Magnetic>

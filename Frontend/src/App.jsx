@@ -15,6 +15,8 @@ const ResumeUpload = lazy(() => import('./pages/ResumeUpload'));
 const ResumeEditor = lazy(() => import('./pages/ResumeEditor'));
 const ResumeSelection = lazy(() => import('./pages/ResumeSelection'));
 const ResumeTemplates = lazy(() => import('./pages/ResumeTemplates'));
+const JobDescription = lazy(() => import('./pages/JobDescription'));
+const Roadmap = lazy(() => import('./pages/Roadmap'));
 
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
@@ -60,6 +62,11 @@ const AppContent = () => {
                 <ResumeSelection />
               </Suspense>
             } />
+            <Route path="/job-description" element={
+              <Suspense fallback={<DashboardSkeleton />}>
+                <JobDescription />
+              </Suspense>
+            } />
             <Route path="/resume-templates" element={
               <Suspense fallback={<DashboardSkeleton />}>
                 <ResumeTemplates />
@@ -73,6 +80,11 @@ const AppContent = () => {
             <Route path="/resume-editor" element={
               <Suspense fallback={<DashboardSkeleton />}>
                 <ResumeEditor />
+              </Suspense>
+            } />
+            <Route path="/roadmap" element={
+              <Suspense fallback={<DashboardSkeleton />}>
+                <Roadmap />
               </Suspense>
             } />
           </Route>
