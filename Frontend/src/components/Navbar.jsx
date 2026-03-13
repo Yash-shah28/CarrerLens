@@ -38,6 +38,11 @@ const Navbar = () => {
                         ) : user ? (
                             <div className="flex items-center gap-8">
                                 <Magnetic strength={0.3}>
+                                    <Link to="/roadmap" className="text-slate-400 hover:text-white transition-colors text-sm font-bold uppercase tracking-widest">
+                                        Roadmap
+                                    </Link>
+                                </Magnetic>
+                                <Magnetic strength={0.3}>
                                     <div className="flex items-center gap-2.5 px-4 py-2 bg-slate-800/40 rounded-full border border-slate-700/50 hover:border-blue-500/30 transition-all cursor-pointer">
                                         <div className="w-7 h-7 bg-blue-500/20 rounded-full flex items-center justify-center">
                                             <UserIcon className="w-4 h-4 text-blue-400" />
@@ -104,6 +109,13 @@ const Navbar = () => {
                                     <p className="text-slate-400 text-xs">{user.email || user.username}</p>
                                 </div>
                             </div>
+                            <Link
+                                to="/roadmap"
+                                onClick={() => setIsMenuOpen(false)}
+                                className="w-full flex items-center justify-center gap-2 bg-slate-800/50 text-slate-300 py-3 rounded-xl border border-slate-700 font-medium"
+                            >
+                                Roadmap
+                            </Link>
                             <button
                                 onClick={handleLogout}
                                 className="w-full flex items-center justify-center gap-2 bg-red-500/10 text-red-500 py-3 rounded-xl border border-red-500/20 font-medium"

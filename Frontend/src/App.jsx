@@ -16,6 +16,7 @@ const ResumeEditor = lazy(() => import('./pages/ResumeEditor'));
 const ResumeSelection = lazy(() => import('./pages/ResumeSelection'));
 const ResumeTemplates = lazy(() => import('./pages/ResumeTemplates'));
 const JobDescription = lazy(() => import('./pages/JobDescription'));
+const Roadmap = lazy(() => import('./pages/Roadmap'));
 
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
@@ -79,6 +80,11 @@ const AppContent = () => {
             <Route path="/resume-editor" element={
               <Suspense fallback={<DashboardSkeleton />}>
                 <ResumeEditor />
+              </Suspense>
+            } />
+            <Route path="/roadmap" element={
+              <Suspense fallback={<DashboardSkeleton />}>
+                <Roadmap />
               </Suspense>
             } />
           </Route>
