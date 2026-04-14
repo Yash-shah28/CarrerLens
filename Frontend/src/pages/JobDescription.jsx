@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Sparkles, FileText, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
@@ -77,16 +76,9 @@ const JobDescription = () => {
                             </p>
 
                             <div className="bg-slate-900 border border-slate-700/80 rounded-2xl overflow-hidden mb-8 focus-within:border-blue-500/60 focus-within:ring-1 focus-within:ring-blue-500/60 transition-all shadow-inner">
-                                <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-800/40">
-                                    <div className="flex items-center gap-2 text-slate-400 text-sm font-bold tracking-wider uppercase">
-                                        <FileText className="w-4 h-4 text-blue-400" />
-                                        <span>Input Field</span>
-                                    </div>
-                                    <div className="flex gap-1.5">
-                                        <div className="w-2.5 h-2.5 rounded-full bg-slate-700" />
-                                        <div className="w-2.5 h-2.5 rounded-full bg-slate-700" />
-                                        <div className="w-2.5 h-2.5 rounded-full bg-slate-700" />
-                                    </div>
+                                <div className="px-5 py-4 border-b border-slate-800 flex items-center gap-2 text-slate-400 text-sm font-semibold bg-slate-800/40">
+                                    <FileText className="w-4 h-4 text-blue-400" />
+                                    Target Job Description
                                 </div>
                                 <textarea
                                     className="w-full h-[400px] md:h-[500px] bg-transparent text-slate-200 placeholder-slate-600 p-6 text-base md:text-lg leading-relaxed resize-none focus:outline-none custom-scrollbar"
