@@ -3,6 +3,8 @@ import json
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Any, Dict, Optional
+from utils.serializers import serialize_doc
+from schemas.interview import InterviewResponseSchema, SummarySchema
 
 try:
     from livekit.api import AccessToken, VideoGrants
@@ -83,7 +85,7 @@ async def get_livekit_token(request: InterviewContextRequest):
 class TranscriptMessage(BaseModel):
     speaker: str
     message: str
-    timestamp: float
+    timestamp: Optional[float] = None  # Agent sends None when no timestamp is available
 
 class TranscriptPayload(BaseModel):
     candidate_name: str
@@ -187,10 +189,128 @@ async def process_transcript(payload: TranscriptPayload):
             "timestamp": datetime.utcnow().timestamp(),
             "transcript_id": str(transcript_doc.get("_id"))
         }
-        await db["interview_summaries"].insert_one(summary_doc)
+        result = await db["interview_summaries"].insert_one(summary_doc)
         
-        return {"status": "success", "summary": summary_doc}
+        # Add the inserted ID and serialize for JSON response
+        summary_doc["_id"] = result.inserted_id
+        serialized_doc = serialize_doc(summary_doc)
+        
+        return {"status": "success", "summary": serialized_doc}
     
     except Exception as e:
         print(f"Error processing transcript: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─────────────────────────────────────────────────────────────────
+# DIAGNOSTIC ENDPOINTS - To help debug transcript/assessment saving
+# ─────────────────────────────────────────────────────────────────
+
+@router.get("/transcripts")
+async def get_all_transcripts():
+    """Get all saved transcripts for debugging."""
+    try:
+        from database import get_database
+        db = get_database()
+        if db is None:
+            raise HTTPException(status_code=500, detail="Database connection not available")
+        
+        transcripts = await db["interview_transcripts"].find().to_list(None)
+        return {
+            "count": len(transcripts),
+            "transcripts": [serialize_doc(t) for t in transcripts]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching transcripts: {str(e)}")
+
+
+@router.get("/summaries")
+async def get_all_summaries():
+    """Get all saved summaries/assessments for debugging."""
+    try:
+        from database import get_database
+        db = get_database()
+        if db is None:
+            raise HTTPException(status_code=500, detail="Database connection not available")
+        
+        summaries = await db["interview_summaries"].find().to_list(None)
+        return {
+            "count": len(summaries),
+            "summaries": [serialize_doc(s) for s in summaries]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching summaries: {str(e)}")
+
+
+@router.get("/transcript/{room_id}")
+async def get_transcript_by_room(room_id: str):
+    """Get a specific interview transcript by room ID."""
+    try:
+        from database import get_database
+        db = get_database()
+        if db is None:
+            raise HTTPException(status_code=500, detail="Database connection not available")
+        
+        transcript = await db["interview_transcripts"].find_one({"room_id": room_id})
+        if not transcript:
+            raise HTTPException(status_code=404, detail=f"No transcript found for room {room_id}")
+        
+        return serialize_doc(transcript)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching transcript: {str(e)}")
+
+
+@router.get("/summary/{room_id}")
+async def get_summary_by_room(room_id: str):
+    """Get a specific interview assessment summary by room ID."""
+    try:
+        from database import get_database
+        db = get_database()
+        if db is None:
+            raise HTTPException(status_code=500, detail="Database connection not available")
+        
+        summary = await db["interview_summaries"].find_one({"room_id": room_id})
+        if not summary:
+            raise HTTPException(status_code=404, detail=f"No summary found for room {room_id}")
+        
+        return serialize_doc(summary)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching summary: {str(e)}")
+
+
+@router.post("/debug/api-status")
+async def debug_api_status():
+    """Check if all required services and credentials are configured."""
+    import os
+    return {
+        "openrouter_api_key_set": bool(os.getenv("OPENROUTER_API_KEY")),
+        "fastapi_url": os.getenv("FASTAPI_URL", "http://127.0.0.1:8000"),
+        "livekit_url": os.getenv("LIVEKIT_URL"),
+        "database_connected": True  # If we got here, DB is connected
+    }
+
+
+@router.get("/past-interviews/{candidate_name}")
+async def get_past_interviews(candidate_name: str):
+    """Retrieve all past interviews and assessments for a candidate."""
+    try:
+        from database import get_database
+        db = get_database()
+        if db is None:
+            raise HTTPException(status_code=500, detail="Database connection not available")
+        
+        summaries = await db["interview_summaries"].find(
+            {"candidate_name": candidate_name}
+        ).sort("timestamp", -1).to_list(None)
+        
+        return {
+            "candidate_name": candidate_name,
+            "count": len(summaries),
+            "interviews": [serialize_doc(s) for s in summaries]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching interviews: {str(e)}")

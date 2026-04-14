@@ -6,16 +6,13 @@ import {
   useLocalParticipant,
   BarVisualizer,
   useRoomContext,
-  VideoTrack,
-  useTracks,
 } from '@livekit/components-react';
-import { Track } from 'livekit-client';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Bot, Mic, MicOff, PhoneOff, AlertCircle, FileText,
+  Bot, Mic, MicOff, AlertCircle, FileText,
   Briefcase, ChevronRight, ChevronLeft, Check, Loader2,
-  User, Sparkles, Camera, CameraOff, ScreenShare, MessageSquare,
-  Volume2, VolumeX, RefreshCw, X, Plus, Search
+  User, Sparkles, MessageSquare, Phone,
+  RefreshCw, Plus, Search
 } from 'lucide-react';
 import axios from 'axios';
 import '@livekit/components-styles';
@@ -388,26 +385,6 @@ const JDStep = ({ onNext, onBack, selectedJD, setSelectedJD }) => {
 /* ─────────────────────────────────────────────
    LIVE INTERVIEW — INNER COMPONENTS
 ───────────────────────────────────────────── */
-function VideoTileView({ isVideoEnabled }) {
-  const tracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
-  const localTracks = useTracks([Track.Source.Camera], { onlySubscribed: false });
-  
-  const allTracks = [...tracks, ...localTracks].filter((t, i, arr) => 
-    arr.findIndex(x => x.participant.identity === t.participant.identity) === i
-  );
-
-  if (!isVideoEnabled || allTracks.length === 0) return null;
-
-  return (
-    <div className="absolute top-4 right-4 z-30 flex flex-col gap-2">
-      {allTracks.slice(0, 2).map((track, idx) => (
-        <div key={idx} className="w-32 h-24 rounded-xl overflow-hidden border border-slate-700 shadow-2xl bg-slate-900">
-          <VideoTrack trackRef={track} className="w-full h-full object-cover" />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function InterviewActiveView({ onLeave, onSummaryReceived, resumeName, jdPreview }) {
   const { state, audioTrack } = useVoiceAssistant();
@@ -437,9 +414,6 @@ function InterviewActiveView({ onLeave, onSummaryReceived, resumeName, jdPreview
   }, [room, onSummaryReceived]);
 
   const [isMuted, setIsMuted] = useState(false);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(false);
-  const [hasVideo, setHasVideo] = useState(false);
-  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [duration, setDuration] = useState(0);
   const timerRef = useRef(null);
 
@@ -460,36 +434,6 @@ function InterviewActiveView({ onLeave, onSummaryReceived, resumeName, jdPreview
     setIsMuted(!isMuted);
   };
 
-  const toggleVideo = async () => {
-    const next = !isVideoEnabled;
-    await localParticipant.setCameraEnabled(next);
-    setIsVideoEnabled(next);
-    setHasVideo(next);
-  };
-
-  const toggleScreenShare = async () => {
-    try {
-      if (isScreenSharing) {
-        // Stop screen sharing
-        await localParticipant.setScreenShareEnabled(false);
-        setIsScreenSharing(false);
-      } else {
-        // Start screen sharing
-        await localParticipant.setScreenShareEnabled(true);
-        setIsScreenSharing(true);
-      }
-    } catch (err) {
-      console.error('Screen share error:', err);
-      alert('Screen sharing is not supported in your browser or you denied permission');
-      setIsScreenSharing(false);
-    }
-  };
-
-  const handleLeave = async () => {
-    await room.disconnect();
-    onLeave();
-  };
-
   const agentIsSpeaking = state === 'speaking';
   const agentIsThinking = state === 'thinking';
   const agentIsListening = state === 'listening' || state === undefined;
@@ -502,9 +446,6 @@ function InterviewActiveView({ onLeave, onSummaryReceived, resumeName, jdPreview
 
   return (
     <div className="flex flex-col items-center w-full h-full relative">
-      {/* Video tiles */}
-      <VideoTileView isVideoEnabled={hasVideo} />
-
       {/* Context pills */}
       <div className="flex items-center gap-2 mb-8 flex-wrap justify-center">
         {resumeName && (
@@ -591,47 +532,18 @@ function InterviewActiveView({ onLeave, onSummaryReceived, resumeName, jdPreview
           {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
         </motion.button>
 
-        {/* Camera Toggle */}
+        {/* End Call Button */}
         <motion.button
-          onClick={toggleVideo}
+          onClick={onLeave}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
-          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-lg ${
-            isVideoEnabled
-              ? 'bg-blue-500/20 border border-blue-500/40 text-blue-400 hover:bg-blue-500/30'
-              : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'
-          }`}
+          className="w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-lg bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30"
         >
-          {isVideoEnabled ? <Camera className="w-6 h-6" /> : <CameraOff className="w-6 h-6" />}
-        </motion.button>
-
-        {/* Screen Share Toggle */}
-        <motion.button
-          onClick={toggleScreenShare}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-lg ${
-            isScreenSharing
-              ? 'bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30'
-              : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'
-          }`}
-          title={isScreenSharing ? 'Stop sharing screen' : 'Share your screen'}
-        >
-          <ScreenShare className="w-6 h-6" />
-        </motion.button>
-
-        {/* End Call */}
-        <motion.button
-          onClick={handleLeave}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-500 flex items-center justify-center shadow-xl shadow-red-600/30 transition-all"
-        >
-          <PhoneOff className="w-7 h-7 text-white" />
+          <Phone className="w-6 h-6" />
         </motion.button>
       </div>
 
-      <p className="mt-6 text-xs text-slate-600">End call to submit interview assessment</p>
+      <p className="mt-6 text-xs text-slate-600">Click the phone icon to end the call</p>
     </div>
   );
 }
@@ -846,81 +758,114 @@ const EndScreen = ({ summary, onRestart }) => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-4xl mx-auto space-y-6 pb-20"
+      className="w-full max-w-3xl mx-auto space-y-8 pb-20"
     >
-      <div className="text-center mb-10">
-        <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-6 mx-auto">
-          <Check className="w-10 h-10 text-emerald-400" />
+      {/* Header */}
+      <div className="text-center">
+        <div className="w-24 h-24 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-6 mx-auto">
+          <Check className="w-12 h-12 text-emerald-400" />
         </div>
-        <h2 className="text-3xl font-bold text-white mb-2">Interview Complete</h2>
-        <p className="text-slate-400">Here is your detailed performance assessment from James.</p>
+        <h2 className="text-4xl font-bold text-white mb-2">Interview Complete!</h2>
+        <p className="text-slate-400 text-lg">Here's your overall performance feedback</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          { label: 'Technical Skills', score: data.technicalSkills?.score, icon: Bot, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-          { label: 'Communication', score: data.communication?.score, icon: MessageSquare, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-          { label: 'Problem Solving', score: data.problemSolving?.score, icon: Sparkles, color: 'text-emerald-400', bg: 'bg-emerald-500/10' }
-        ].map((item, idx) => (
-          <div key={idx} className="bg-slate-800/40 border border-slate-700/50 p-6 rounded-3xl text-center">
-            <div className={`w-12 h-12 ${item.bg} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
-              <item.icon className={`w-6 h-6 ${item.color}`} />
-            </div>
-            <p className="text-slate-400 text-sm font-medium mb-1">{item.label}</p>
-            <p className={`text-3xl font-bold ${item.color}`}>{item.score || '--'}%</p>
-          </div>
-        ))}
+      {/* Overall Recommendation Badge */}
+      <div className="bg-gradient-to-r from-slate-800/60 to-slate-800/30 border border-slate-700/50 p-8 rounded-3xl text-center">
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <div className={`w-4 h-4 rounded-full ${overall.recommendation === 'HIRE' ? 'bg-emerald-400' : overall.recommendation === 'REJECT' ? 'bg-red-400' : 'bg-amber-400'}`} />
+          <span className={`text-sm font-bold uppercase tracking-wider ${overall.recommendation === 'HIRE' ? 'text-emerald-400' : overall.recommendation === 'REJECT' ? 'text-red-400' : 'text-amber-400'}`}>
+            Recommendation: {overall.recommendation || 'PENDING'}
+          </span>
+        </div>
+        <p className="text-slate-300 text-sm leading-relaxed">
+          {overall.recommendationReason || 'Assessment based on your interview performance.'}
+        </p>
       </div>
 
+      {/* Overall Feedback Section */}
       <div className="bg-slate-800/40 border border-slate-700/50 p-8 rounded-3xl">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="px-3 py-1 bg-blue-500/20 rounded-full text-blue-400 text-xs font-bold uppercase tracking-wider">
-            Recommendation: {overall.recommendation || 'N/A'}
-          </div>
-          <div className="flex-1 h-px bg-slate-700/50" />
-        </div>
-        
-        <h3 className="text-xl font-bold text-white mb-4">Overall Feedback</h3>
-        <p className="text-slate-300 leading-relaxed mb-8">
+        <h3 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+          <MessageSquare className="w-6 h-6 text-blue-400" />
+          Your Performance
+        </h3>
+        <p className="text-slate-300 text-lg leading-relaxed mb-8">
           {overall.overallFeedback || 'Assessment generated based on your interview session.'}
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div>
-            <h4 className="text-emerald-400 text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Check className="w-4 h-4" /> Key Strengths
-            </h4>
-            <ul className="space-y-3">
-              {(overall.keyStrengths || []).map((s, i) => (
-                <li key={i} className="flex items-start gap-3 bg-slate-900/40 p-3 rounded-2xl border border-slate-800/50 text-slate-300 text-sm">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-                  {s}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-amber-400 text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" /> Areas for Growth
-            </h4>
-            <ul className="space-y-3">
-              {(overall.areasForImprovement || []).map((a, i) => (
-                <li key={i} className="flex items-start gap-3 bg-slate-900/40 p-3 rounded-2xl border border-slate-800/50 text-slate-300 text-sm">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
-                  {a}
-                </li>
-              ))}
-            </ul>
-          </div>
+        {/* Key Strengths */}
+        <div className="mb-8">
+          <h4 className="text-emerald-400 text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
+            <Check className="w-5 h-5" /> Key Strengths
+          </h4>
+          <ul className="space-y-3">
+            {(overall.keyStrengths || []).map((s, i) => (
+              <li key={i} className="flex items-start gap-4 bg-emerald-500/5 border border-emerald-500/20 p-4 rounded-2xl text-slate-300">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 mt-2 shrink-0" />
+                <span className="text-base leading-relaxed">{s}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Areas for Improvement */}
+        <div>
+          <h4 className="text-amber-400 text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
+            <AlertCircle className="w-5 h-5" /> Areas for Improvement
+          </h4>
+          <ul className="space-y-3">
+            {(overall.areasForImprovement || []).map((a, i) => (
+              <li key={i} className="flex items-start gap-4 bg-amber-500/5 border border-amber-500/20 p-4 rounded-2xl text-slate-300">
+                <div className="w-2 h-2 rounded-full bg-amber-400 mt-2 shrink-0" />
+                <span className="text-base leading-relaxed">{a}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
+      {/* Detailed Scores - Optional Reference */}
+      {data.technicalSkills || data.communication || data.problemSolving ? (
+        <div className="bg-slate-800/20 border border-slate-700/30 p-8 rounded-3xl">
+          <h3 className="text-lg font-bold text-white mb-6">Performance Breakdown</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {data.technicalSkills && (
+              <div className="bg-slate-800/40 border border-slate-700/50 p-6 rounded-2xl text-center">
+                <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <Bot className="w-6 h-6 text-blue-400" />
+                </div>
+                <p className="text-slate-400 text-sm font-medium mb-2">Technical Skills</p>
+                <p className="text-3xl font-bold text-blue-400">{data.technicalSkills?.score || '--'}%</p>
+              </div>
+            )}
+            {data.communication && (
+              <div className="bg-slate-800/40 border border-slate-700/50 p-6 rounded-2xl text-center">
+                <div className="w-12 h-12 bg-purple-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <MessageSquare className="w-6 h-6 text-purple-400" />
+                </div>
+                <p className="text-slate-400 text-sm font-medium mb-2">Communication</p>
+                <p className="text-3xl font-bold text-purple-400">{data.communication?.score || '--'}%</p>
+              </div>
+            )}
+            {data.problemSolving && (
+              <div className="bg-slate-800/40 border border-slate-700/50 p-6 rounded-2xl text-center">
+                <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  <Sparkles className="w-6 h-6 text-emerald-400" />
+                </div>
+                <p className="text-slate-400 text-sm font-medium mb-2">Problem Solving</p>
+                <p className="text-3xl font-bold text-emerald-400">{data.problemSolving?.score || '--'}%</p>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Action Button */}
       <div className="text-center pt-8">
         <button
           onClick={onRestart}
-          className="px-10 py-4 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl transition-all border border-slate-700 flex items-center gap-2 mx-auto"
+          className="px-12 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl transition-all flex items-center gap-2 mx-auto shadow-lg shadow-blue-600/20"
         >
-          <RefreshCw className="w-4 h-4" /> Return to Dashboard
+          <RefreshCw className="w-5 h-5" /> Return to Dashboard
         </button>
       </div>
     </motion.div>
