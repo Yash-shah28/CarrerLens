@@ -72,3 +72,7 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+
+
+
+# Also after the interview is ended then make a summary and show how he has performed and what he need to learn on ans also show some learning material as we have shown in the roadmap

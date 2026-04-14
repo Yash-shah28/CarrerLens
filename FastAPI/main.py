@@ -1,9 +1,30 @@
-from fastapi import FastAPI 
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file at startup
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from database import connect_to_mongo, close_mongo_connection
 from routes.user_route import router as user_router
 from routes.resume_route import router as resume_router
+from routes.chat_route import router as chat_router
+from routes.interview_route import router as interview_router
 
 app = FastAPI(title="FastAPI MongoDB Integration")
+
+# Allow frontend dev servers to call the API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Include routers
 # Note: resume_router already has prefix="/resume", so we include it under /api to make it /api/resume/...
@@ -17,6 +38,8 @@ app.include_router(user_router, prefix="/api", tags=["users"])
 # Resume router has prefix="/resume".
 # If we include it with prefix="/api", it becomes /api/resume
 app.include_router(resume_router, prefix="/api", tags=["Resume"])
+app.include_router(chat_router, prefix="/api", tags=["Chat"])
+app.include_router(interview_router, prefix="/api", tags=["Interview"])
 
 @app.on_event("startup")
 async def startup_event():

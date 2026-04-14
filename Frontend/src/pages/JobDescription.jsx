@@ -1,22 +1,49 @@
 /* eslint-disable no-unused-vars */
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Sparkles, FileText, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Sparkles, FileText, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FadeIn } from '../components/Animations';
 import Magnetic from '../components/Magnetic';
+import axios from 'axios';
 
 const JobDescription = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [jobDescription, setJobDescription] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
 
-    const handleContinue = () => {
+    const handleContinue = async () => {
+        const stateToPass = location.state || { mode: 'build' };
+
+        // Always save to localStorage as a fast fallback
         if (jobDescription.trim()) {
             localStorage.setItem('targetJobDescription', jobDescription);
         }
-        const stateToPass = location.state || { mode: 'build' };
-        navigate('/resume-templates', { state: stateToPass });
+
+        // If JD has content, save it to the DB
+        if (jobDescription.trim()) {
+            setIsSaving(true);
+            try {
+                await axios.post(
+                    '/api/v1/job-descriptions',
+                    { text: jobDescription.trim() },
+                    { withCredentials: true }
+                );
+                setSaved(true);
+            } catch (err) {
+                console.error('Failed to save JD to DB:', err);
+                // Non-blocking — still continue to next page
+            } finally {
+                setIsSaving(false);
+            }
+        }
+
+        // Pass JD text in navigation state so ResumeEditor gets it immediately
+        navigate('/resume-templates', {
+            state: { ...stateToPass, jdText: jobDescription.trim() }
+        });
     };
 
     return (
@@ -73,6 +100,13 @@ const JobDescription = () => {
                                         <span>AI Ready</span>
                                         <span className="mx-2 text-slate-600">•</span>
                                         <span>{jobDescription.length} characters</span>
+                                        {saved && (
+                                            <>
+                                                <span className="mx-2 text-slate-600">•</span>
+                                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                                <span className="text-emerald-400">Saved</span>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -80,13 +114,20 @@ const JobDescription = () => {
                             <Magnetic>
                                 <button
                                     onClick={handleContinue}
-                                    // Make it enabled either way to not block user, or simply require something
-                                    // removed disabled state for better experience if they just want a blank build, 
-                                    // but based on instruction let's let them go forward even if it's empty, or just lightly disabled
-                                    className="w-full group bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg shadow-blue-600/30 active:scale-[0.98]"
+                                    disabled={isSaving}
+                                    className="w-full group bg-blue-600 hover:bg-blue-500 disabled:opacity-70 disabled:cursor-not-allowed text-white px-8 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg shadow-blue-600/30 active:scale-[0.98]"
                                 >
-                                    Continue to template selection
-                                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                    {isSaving ? (
+                                        <>
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                            Saving...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Continue to template selection
+                                            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                        </>
+                                    )}
                                 </button>
                             </Magnetic>
                         </div>
