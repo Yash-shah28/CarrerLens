@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -10,13 +9,12 @@ const generateRoadmap = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Skill is required");
   }
 
-  if (!process.env.GEMINI_API_KEY) {
-    console.error("CRITICAL: GEMINI_API_KEY is missing from process.env");
-    throw new ApiError(500, "Server configuration error: Gemini API Key missing");
-  }
+  const apiKey = process.env.OPENROUTER_API_KEY;
 
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  if (!apiKey) {
+    console.error("CRITICAL: OPENROUTER_API_KEY is missing from process.env");
+    throw new ApiError(500, "Server configuration error: OPENROUTER_API_KEY missing. Please check your .env file.");
+  }
 
   const prompt = `
     Create a detailed learning roadmap for mastering "${skill}". 
@@ -46,24 +44,74 @@ const generateRoadmap = asyncHandler(async (req, res) => {
     `;
 
   try {
-    console.log(`Generating roadmap for skill: ${skill}...`);
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    let text = response.text();
+    console.log(`Generating roadmap for skill: ${skill} via OpenRouter...`);
+    
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer": "http://localhost:3000",
+        "X-Title": "CareerLens Roadmap Generator",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        "model": "google/gemini-2.0-flash-001",
+        "messages": [
+          { "role": "user", "content": prompt }
+        ]
+      })
+    });
 
-    console.log("Raw AI Response received");
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("OpenRouter API Error:", errorData);
+      throw new ApiError(response.status, `AI Provider Error: ${errorData.error?.message || "Failed to generate roadmap"}`);
+    }
 
-    // Clean the text in case it includes markdown code blocks
+    const data = await response.json();
+    let text = data.choices[0].message.content;
+
+    console.log("Raw AI Response received from OpenRouter. Attempting to parse...");
+
+    // 1. Clean the text (remove markdown blocks etc)
     text = text.replace(/```json/g, "").replace(/```/g, "").trim();
 
-    const roadmapData = JSON.parse(text);
+    let roadmapData;
+    try {
+      roadmapData = JSON.parse(text);
+    } catch (parseErr) {
+      console.error("JSON Parse Error. Raw Text:", text);
+      throw new ApiError(500, "Failed to parse AI response. Please try again.");
+    }
+
+    // 2. Resilience: Handle common AI wrapper patterns
+    // Sometimes AI returns { "roadmap": { ... } } instead of { ... }
+    if (roadmapData.roadmap && Array.isArray(roadmapData.roadmap.steps)) {
+      roadmapData = roadmapData.roadmap;
+    } else if (roadmapData.data && Array.isArray(roadmapData.data.steps)) {
+      roadmapData = roadmapData.data;
+    }
+
+    // 3. Validation: Ensure steps is an array
+    if (!roadmapData.steps || !Array.isArray(roadmapData.steps)) {
+      console.error("AI Response invalid structure (Steps missing or not array):", roadmapData);
+      throw new ApiError(500, "The AI generated an invalid roadmap format. Please try again.");
+    }
+
+    // Ensure steps have required structure to prevent frontend crashes
+    roadmapData.steps = roadmapData.steps.map(step => ({
+        ...step,
+        topics: Array.isArray(step.topics) ? step.topics : ["General Overview"],
+        resources: step.resources || { youtube: [], books: [] }
+    }));
 
     return res.status(200).json(
       new ApiResponse(200, roadmapData, "Roadmap generated successfully")
     );
   } catch (error) {
-    console.error("Gemini API Full Error:", error);
-    throw new ApiError(500, `AI Error: ${error.message || "Failed to generate roadmap"}`);
+    if (error instanceof ApiError) throw error;
+    console.error("Roadmap Generation Error:", error);
+    throw new ApiError(500, `Internal Error: ${error.message || "Failed to generate roadmap"}`);
   }
 });
 

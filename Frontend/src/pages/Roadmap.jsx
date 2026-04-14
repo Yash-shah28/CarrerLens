@@ -49,17 +49,19 @@ const Roadmap = () => {
                 { withCredentials: true }
             );
 
-            if (response.data.success) {
+            if (response.data.success && response.data.data?.steps) {
                 // Map the dynamic icons based on step index or keywords if needed
                 const icons = [BookOpen, BrainCircuit, Layers, Code, Rocket, Sparkles];
                 const roadmapWithIcons = {
                     ...response.data.data,
-                    steps: response.data.data.steps.map((step, idx) => ({
+                    steps: (response.data.data.steps || []).map((step, idx) => ({
                         ...step,
                         icon: icons[idx % icons.length]
                     }))
                 };
                 setRoadmap(roadmapWithIcons);
+            } else {
+                throw new Error("Invalid roadmap data received from server");
             }
         } catch (error) {
             console.error("Roadmap Generation Error:", error);
