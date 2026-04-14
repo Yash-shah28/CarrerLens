@@ -35,7 +35,7 @@ const ResumeTemplates = () => {
     const location = useLocation();
 
     const mode = location.state?.mode || searchParams.get('mode') || 'build'; // 'build' or 'preview'
-    const { fileUrl, fileName, parsedData } = location.state || {};
+    const { fileUrl, fileName, parsedData, jdText } = location.state || {};
 
     // Use Parsed Data if available (Upload flow), otherwise use Mock Data (Build flow)
     const previewData = parsedData || MOCK_RESUME_DATA;
@@ -48,7 +48,8 @@ const ResumeTemplates = () => {
                 fileUrl,
                 fileName,
                 isNew: mode === 'build',
-                parsedData: parsedData // Pass parsedData only if it exists, Editor should handle initialization
+                parsedData: parsedData,
+                jdText: jdText || '' // Forward JD text to resume editor for AI chat
             }
         });
     };

@@ -10,3 +10,5 @@ langchain
 langchain-google-genai
 google-generativeai
 langchain-core
+livekit
+livekit-api

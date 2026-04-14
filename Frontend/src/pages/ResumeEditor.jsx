@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 
-import React, { useState, useLayoutEffect, useRef } from 'react';
+import React, { useState, useLayoutEffect, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Document, Page, pdfjs } from 'react-pdf';
 
@@ -23,6 +23,7 @@ import {
     Minus,
     Square,
     X,
+    Mic,
     MoreVertical,
     Eye,
     Settings,
@@ -46,7 +47,40 @@ const ResumeEditor = () => {
     const { user } = useUser();
     const navigate = useNavigate();
     const location = useLocation();
-    const { fileUrl, fileName, templateId, parsedData } = location.state || {};
+    const { fileUrl, fileName, templateId, parsedData, jdText: jdFromState } = location.state || {};
+
+    // Priority order: 1) navigation state  2) localStorage  3) DB fetch
+    const localStorageJD = localStorage.getItem('targetJobDescription') || "";
+    const [jdText, setJdText] = useState(jdFromState || localStorageJD || "");
+    const [jdLoaded, setJdLoaded] = useState(!!(jdFromState || localStorageJD));
+
+    // Fetch JD from DB on mount as the final fallback (covers direct navigation to editor)
+    useEffect(() => {
+        // If we already have it from state or localStorage, no need to fetch
+        if (jdFromState || localStorageJD) {
+            setJdLoaded(true);
+            return;
+        }
+        const fetchJD = async () => {
+            try {
+                const res = await axios.get('/api/v1/job-descriptions/latest', { withCredentials: true });
+                const text = res.data?.data?.text;
+                if (text) {
+                    setJdText(text);
+                    setJdLoaded(true);
+                    // Also cache it locally for next time
+                    localStorage.setItem('targetJobDescription', text);
+                    console.log('[ResumeEditor] JD loaded from DB:', text.slice(0, 60) + '...');
+                } else {
+                    console.warn('[ResumeEditor] No JD found in DB for this user.');
+                }
+            } catch (err) {
+                console.warn('[ResumeEditor] Could not fetch JD from DB:', err?.response?.data || err.message);
+            }
+        };
+        fetchJD();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const TEMPLATE_NAMES = {
         't1': "Standard Default",
@@ -107,25 +141,112 @@ const ResumeEditor = () => {
 
     // --- Chat State ---
     const [messages, setMessages] = useState([
-        { id: 1, text: "Hi there! I've analyzed your resume details. I can help you rewrite sections or fix formatting. What would you like to do?", sender: 'bot' }
+        { id: 1, text: "Hi! I'm CareerLens AI. I have access to your resume and the job description. Ask me to rewrite sections, improve bullet points, optimize for ATS, or tailor your resume for the JD!", sender: 'bot' }
     ]);
     const [inputValue, setInputValue] = useState("");
+    const [isBotTyping, setIsBotTyping] = useState(false);
+    const messagesEndRef = useRef(null);
 
-    const handleSendMessage = (e) => {
-        e.preventDefault();
-        if (!inputValue.trim()) return;
+    // Auto-scroll to bottom when new messages arrive
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages, isBotTyping]);
 
-        setMessages([...messages, { id: Date.now(), text: inputValue, sender: 'user' }]);
+    // Core AI call — takes a plain text message, adds it to chat, fires the API
+    const sendToAI = async (messageText) => {
+        if (!messageText.trim() || isBotTyping) return;
+
+        const userMsg = { id: Date.now(), text: messageText, sender: 'user' };
+        const updatedMessages = [...messages, userMsg];
+        setMessages(updatedMessages);
         setInputValue("");
+        setIsBotTyping(true);
 
-        // Simulate bot response
-        setTimeout(() => {
+        try {
+            const response = await fetch('/api/chat/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: messageText,
+                    resume_data: resumeData,
+                    jd_text: jdText,
+                    chat_history: updatedMessages.slice(-20).map(m => ({ sender: m.sender, text: m.text }))
+                })
+            });
+
+            if (!response.ok) {
+                let detail = `HTTP ${response.status}`;
+                try {
+                    const errBody = await response.json();
+                    detail = errBody.detail || JSON.stringify(errBody);
+                } catch {}
+                throw new Error(detail);
+            }
+
+            const data = await response.json();
+
+            if (data.resume_updates && typeof data.resume_updates === 'object') {
+                setResumeData(prev => mergeResumeUpdates(prev, data.resume_updates));
+            }
+
             setMessages(prev => [...prev, {
                 id: Date.now() + 1,
-                text: "I've updated that section for you. Is there anything else you'd like to adjust?",
-                sender: 'bot'
+                text: data.reply || "Done! Let me know if you need anything else.",
+                sender: 'bot',
+                hasUpdates: !!data.resume_updates
             }]);
-        }, 1500);
+        } catch (error) {
+            console.error('Chat agent error:', error);
+            const errMsg = error?.message || String(error);
+            setMessages(prev => [...prev, {
+                id: Date.now() + 1,
+                text: `⚠️ Error: ${errMsg}`,
+                sender: 'bot',
+                isError: true
+            }]);
+        } finally {
+            setIsBotTyping(false);
+        }
+    };
+
+    // Form submission handler
+    const handleSendMessage = async (e) => {
+        e.preventDefault();
+        await sendToAI(inputValue.trim());
+    };
+
+    // Trigger a targeted AI rewrite from an editor button (e.g. "Rewrite with AI")
+    // scrolls the chat panel into view so the user sees the response
+    const triggerAIRewrite = (section) => {
+        if (isBotTyping) return;
+
+        const prompts = {
+            summary: `Rewrite my professional summary to be compelling and tailored to the job description. 
+Keep it grounded in my actual experience from the resume — don't invent skills or roles I don't have. 
+Make it 3–4 sentences, highlight my strongest relevant skills, and use keywords from the JD for ATS optimization. 
+Current summary: "${resumeData.summary || 'Not written yet'}"`,
+        };
+
+        const message = prompts[section];
+        if (!message) return;
+
+        // Scroll chat panel into view
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+        sendToAI(message);
+    };
+
+    // Deep-merge resume updates from AI into existing resume data
+    const mergeResumeUpdates = (current, updates) => {
+        if (!updates) return current;
+        const merged = { ...current };
+        for (const key of Object.keys(updates)) {
+            if (updates[key] !== null && updates[key] !== undefined) {
+                // For arrays and objects, replace entirely if provided
+                merged[key] = updates[key];
+            }
+        }
+        return merged;
     };
 
 
@@ -135,53 +256,81 @@ const ResumeEditor = () => {
     // If parsedData is passed, use it. Otherwise use the EMPTY data structure for new builds.
     const [resumeData, setResumeData] = useState(() => {
         if (parsedData) return parsedData;
-        return JSON.parse(JSON.stringify(EMPTY_RESUME_DATA)); // Deep copy to differ references
+        return JSON.parse(JSON.stringify(EMPTY_RESUME_DATA)); // Deep copy to avoid reference issues
     });
 
     const [resumeId, setResumeId] = useState(parsedData?._id || null);
+    const [isLoadingResume, setIsLoadingResume] = useState(false);
+
+    // On mount: restore the last saved resume from DB if we didn't get parsedData from navigation
+    useEffect(() => {
+        if (parsedData) return; // Already have data from navigation state (e.g. upload flow)
+
+        const savedResumeId = parsedData?._id || localStorage.getItem('lastSavedResumeId');
+        if (!savedResumeId) return; // Nothing saved yet
+
+        const loadResume = async () => {
+            setIsLoadingResume(true);
+            try {
+                const res = await axios.get(`/api/v1/resumes/${savedResumeId}`, { withCredentials: true });
+                const resume = res.data?.data;
+                if (resume) {
+                    setResumeData(resume);
+                    setResumeId(resume._id);
+                    // Also sync localStorage
+                    localStorage.setItem('savedResumeData', JSON.stringify(resume));
+                    console.log('[ResumeEditor] Resume restored from DB:', resume._id);
+                }
+            } catch (err) {
+                console.warn('[ResumeEditor] Could not load resume from DB:', err?.response?.data || err.message);
+                // Fallback: try localStorage cache
+                const cached = localStorage.getItem('savedResumeData');
+                if (cached) {
+                    try {
+                        const parsed = JSON.parse(cached);
+                        setResumeData(parsed);
+                        if (parsed._id) setResumeId(parsed._id);
+                        console.log('[ResumeEditor] Resume restored from localStorage cache');
+                    } catch {}
+                }
+            } finally {
+                setIsLoadingResume(false);
+            }
+        };
+        loadResume();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Derived Preview Data: Merge User Data over Mock Data
     // We only use Mock Data if the specific field in User Data is empty/initial
     // Use resumeData directly for preview so the PDF reflects exactly what the user entered
     const previewData = resumeData;
 
-    const handleSave = async () => {
-        try {
-            const btn = document.getElementById('save-btn');
-            const originalText = btn ? btn.innerHTML : "Save Changes";
-            if (btn) btn.innerHTML = `<span class="flex items-center gap-2"><div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/> Saving...</span>`;
+    const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
 
+    const handleSave = async () => {
+        if (saveStatus === 'saving') return;
+        setSaveStatus('saving');
+        try {
             let response;
             if (resumeId) {
-                // Update existing
                 response = await axios.patch(`/api/v1/resumes/${resumeId}`, resumeData, { withCredentials: true });
             } else {
-                // Create new
                 response = await axios.post('/api/v1/resumes', resumeData, { withCredentials: true });
                 if (response.data?.data?._id) {
-                    setResumeId(response.data.data._id);
+                    const newId = response.data.data._id;
+                    setResumeId(newId);
+                    localStorage.setItem('lastSavedResumeId', newId);
                 }
             }
-
-            // Still save to local storage as backup/cache
             localStorage.setItem('savedResumeData', JSON.stringify(resumeData));
-
-            if (btn) {
-                btn.innerHTML = `<span class="flex items-center gap-2"><CheckCircle2 class="w-4 h-4" /> Saved</span>`;
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                }, 2000);
-            }
+            if (resumeId) localStorage.setItem('lastSavedResumeId', resumeId);
+            setSaveStatus('saved');
+            setTimeout(() => setSaveStatus('idle'), 2500);
         } catch (error) {
             console.error("Error saving resume:", error);
-            const btn = document.getElementById('save-btn');
-            if (btn) {
-                // btn.innerHTML = originalText; // Revert
-                btn.innerHTML = `<span class="text-red-400 flex items-center gap-2"><AlertCircle class="w-4 h-4" /> Error</span>`;
-                setTimeout(() => {
-                    btn.innerHTML = "Save Changes"; // Hardcoded revert
-                }, 2000);
-            }
+            setSaveStatus('error');
+            setTimeout(() => setSaveStatus('idle'), 2500);
         }
     };
 
@@ -480,6 +629,14 @@ const ResumeEditor = () => {
     return (
         <div className="h-screen bg-slate-900 overflow-hidden flex flex-col pt-20">
 
+            {/* Loading overlay — shown while restoring resume from DB on refresh */}
+            {isLoadingResume && (
+                <div className="absolute inset-0 z-50 bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+                    <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-slate-300 text-sm font-medium">Restoring your resume...</p>
+                </div>
+            )}
+
             {/* Header / Toolbar */}
             <div className="px-6 py-4 flex items-center justify-between border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-sm z-10">
                 <div className="flex items-center gap-4">
@@ -509,6 +666,13 @@ const ResumeEditor = () => {
                         </div>
                     )}
                     <button
+                        onClick={() => navigate('/mock-interview')}
+                        className="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-2"
+                    >
+                        <Mic className="w-3 h-3" />
+                        Mock Interview
+                    </button>
+                    <button
                         id="download-btn"
                         onClick={handleDownload}
                         className="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors border border-slate-700"
@@ -518,9 +682,19 @@ const ResumeEditor = () => {
                     <button
                         id="save-btn"
                         onClick={handleSave}
-                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-blue-600/20"
+                        disabled={saveStatus === 'saving'}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-lg flex items-center gap-2 ${
+                            saveStatus === 'saved'
+                                ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
+                                : saveStatus === 'error'
+                                ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-600/20'
+                                : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-600/20 disabled:opacity-60'
+                        }`}
                     >
-                        Save Changes
+                        {saveStatus === 'saving' && <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                        {saveStatus === 'saved' && <CheckCircle2 className="w-3.5 h-3.5" />}
+                        {saveStatus === 'error' && <AlertCircle className="w-3.5 h-3.5" />}
+                        {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved!' : saveStatus === 'error' ? 'Error' : 'Save Changes'}
                     </button>
                 </div>
             </div>
@@ -699,8 +873,15 @@ const ResumeEditor = () => {
                                     onChange={(e) => setResumeData(prev => ({ ...prev, summary: e.target.value }))}
                                     className="w-full min-h-[120px] bg-slate-900 text-white p-3 rounded-xl border border-slate-700 focus:border-blue-500 outline-none leading-relaxed text-sm resize-y"
                                 />
-                                <button className="w-full flex items-center justify-center gap-2 py-2 bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-lg text-xs font-bold text-blue-300 hover:bg-blue-600/10 transition-all">
-                                    <Sparkles className="w-3.5 h-3.5" /> Rewrite with AI
+                                <button
+                                    onClick={() => triggerAIRewrite('summary')}
+                                    disabled={isBotTyping}
+                                    className="w-full flex items-center justify-center gap-2 py-2 bg-gradient-to-r from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-lg text-xs font-bold text-blue-300 hover:bg-blue-600/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isBotTyping
+                                        ? <><div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin" /> AI is writing...</>
+                                        : <><Sparkles className="w-3.5 h-3.5" /> Rewrite with AI</>
+                                    }
                                 </button>
                             </motion.div>
                         )}
@@ -1054,8 +1235,8 @@ const ResumeEditor = () => {
                 </div>
 
                 {/* MIDDLE: Chat Interface (4 cols) */}
-                <div className="col-span-12 lg:col-span-4 h-full">
-                    <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl h-full flex flex-col overflow-hidden relative backdrop-blur-sm">
+                <div className="col-span-12 lg:col-span-4 h-full min-h-0 flex flex-col">
+                    <div className="bg-slate-800/30 border border-slate-700/50 rounded-2xl flex flex-col overflow-hidden relative backdrop-blur-sm flex-1 min-h-0">
                         {/* Chat Header */}
                         <div className="p-4 border-b border-slate-700/50 bg-slate-800/50 flex items-center justify-between">
                             <div className="flex items-center gap-3">
@@ -1064,14 +1245,28 @@ const ResumeEditor = () => {
                                 </div>
                                 <div>
                                     <h3 className="text-white font-bold text-sm">CareerLens AI</h3>
-                                    <p className="text-slate-400 text-xs">Assistant</p>
+                                    <p className="text-slate-400 text-xs">{isBotTyping ? 'Thinking...' : 'Assistant'}</p>
                                 </div>
                             </div>
-                            <button className="text-slate-400 hover:text-white text-xs transition-colors">Clear</button>
+                            <div className="flex items-center gap-2">
+                                {/* JD Status indicator */}
+                                <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                                    jdLoaded
+                                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                                    : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                                }`}>
+                                    <Briefcase className="w-2.5 h-2.5" />
+                                    {jdLoaded ? 'JD Loaded' : 'No JD'}
+                                </div>
+                                <button
+                                    onClick={() => setMessages([{ id: 1, text: "Hi! I'm CareerLens AI. I have access to your resume and the job description. Ask me to rewrite sections, improve bullet points, optimize for ATS, or tailor your resume for the JD!", sender: 'bot' }])}
+                                    className="text-slate-400 hover:text-white text-xs transition-colors"
+                                >Clear</button>
+                            </div>
                         </div>
 
-                        {/* Messages */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+                        {/* Messages — scrollable area, grows to fill remaining space */}
+                        <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                             {messages.map((msg) => (
                                 <motion.div
                                     key={msg.id}
@@ -1079,36 +1274,66 @@ const ResumeEditor = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                                 >
-                                    <div className={`max-w-[85%] rounded-2xl p-3 text-sm leading-relaxed ${msg.sender === 'user'
-                                        ? 'bg-blue-600 text-white rounded-tr-sm'
-                                        : 'bg-slate-800 border border-slate-700 text-slate-200 rounded-tl-sm shadow-sm'
+                                    <div className={`max-w-[85%] space-y-1 min-w-0`}>
+                                        <div className={`rounded-2xl p-3 text-sm leading-relaxed break-words whitespace-pre-wrap ${
+                                            msg.sender === 'user'
+                                            ? 'bg-blue-600 text-white rounded-tr-sm'
+                                            : msg.isError
+                                            ? 'bg-red-900/30 border border-red-500/30 text-red-300 rounded-tl-sm'
+                                            : 'bg-slate-800 border border-slate-700 text-slate-200 rounded-tl-sm shadow-sm'
                                         }`}>
-                                        {msg.text}
+                                            {msg.text}
+                                        </div>
+                                        {msg.hasUpdates && (
+                                            <div className="flex items-center gap-1.5 px-1">
+                                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                                <span className="text-[10px] text-emerald-400 font-medium">Resume Updated</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </motion.div>
                             ))}
+                            {/* Bot typing indicator */}
+                            {isBotTyping && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="flex justify-start"
+                                >
+                                    <div className="bg-slate-800 border border-slate-700 rounded-2xl rounded-tl-sm p-3 shadow-sm flex items-center gap-1.5">
+                                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                    </div>
+                                </motion.div>
+                            )}
+                            <div ref={messagesEndRef} />
                         </div>
 
-                        {/* Input Area */}
-                        <div className="p-4 bg-slate-800/50 border-t border-slate-700/50 mt-auto">
+                        {/* Input Area — always pinned to bottom */}
+                        <div className="shrink-0 p-4 bg-slate-800/50 border-t border-slate-700/50">
                             <form onSubmit={handleSendMessage} className="relative">
                                 <input
                                     type="text"
                                     value={inputValue}
                                     onChange={(e) => setInputValue(e.target.value)}
-                                    placeholder="Type a command..."
-                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 pl-4 pr-12 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all text-sm"
+                                    placeholder={isBotTyping ? "AI is thinking..." : "Ask me to improve your resume..."}
+                                    disabled={isBotTyping}
+                                    className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 pl-4 pr-12 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                                 />
                                 <button
                                     type="submit"
-                                    disabled={!inputValue.trim()}
+                                    disabled={!inputValue.trim() || isBotTyping}
                                     className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    <Send className="w-3.5 h-3.5" />
+                                    {isBotTyping
+                                        ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        : <Send className="w-3.5 h-3.5" />
+                                    }
                                 </button>
                             </form>
                             <p className="text-center text-[10px] text-slate-600 mt-2">
-                                AI can make mistakes. Please verify generated content.
+                                AI has access to your resume &amp; JD. Changes are applied instantly.
                             </p>
                         </div>
                     </div>

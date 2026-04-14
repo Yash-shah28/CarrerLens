@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser"
 import userRouter from './routes/user.routes.js'
 import resumeRouter from './routes/resume.routes.js'
 import roadmapRouter from './routes/roadmap.routes.js'
+import jobDescriptionRouter from './routes/jobdescription.routes.js'
 import { errorHandler } from "./middlewares/error.middleware.js"
 
 const app = express()
@@ -24,6 +25,7 @@ app.use(cookieParser())
 app.use("/api/v1/users", userRouter)
 app.use("/api/v1/resumes", resumeRouter)
 app.use("/api/v1/roadmaps", roadmapRouter)
+app.use("/api/v1/job-descriptions", jobDescriptionRouter)
 
 // global error handler
 app.use(errorHandler)
