@@ -179,7 +179,7 @@ const ResumeEditor = () => {
                 try {
                     const errBody = await response.json();
                     detail = errBody.detail || JSON.stringify(errBody);
-                } catch {}
+                } catch { /* empty */ }
                 throw new Error(detail);
             }
 
@@ -291,7 +291,7 @@ Current summary: "${resumeData.summary || 'Not written yet'}"`,
                         setResumeData(parsed);
                         if (parsed._id) setResumeId(parsed._id);
                         console.log('[ResumeEditor] Resume restored from localStorage cache');
-                    } catch {}
+                    } catch { /* empty */ }
                 }
             } finally {
                 setIsLoadingResume(false);

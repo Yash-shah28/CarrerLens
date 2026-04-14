@@ -409,10 +409,32 @@ function VideoTileView({ isVideoEnabled }) {
   );
 }
 
-function InterviewActiveView({ onLeave, resumeName, jdPreview }) {
+function InterviewActiveView({ onLeave, onSummaryReceived, resumeName, jdPreview }) {
   const { state, audioTrack } = useVoiceAssistant();
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
+
+  // Listen for summary data from agent
+  useEffect(() => {
+    const handleData = (payload, participant, kind, topic) => {
+      if (topic === 'interview_summary') {
+        try {
+          const decoder = new TextDecoder();
+          const str = decoder.decode(payload);
+          const data = JSON.parse(str);
+          console.log('Summary received via data packet:', data);
+          if (onSummaryReceived) onSummaryReceived(data);
+        } catch (err) {
+          console.error('Failed to parse summary data:', err);
+        }
+      }
+    };
+
+    room.on('dataReceived', handleData);
+    return () => {
+      room.off('dataReceived', handleData);
+    };
+  }, [room, onSummaryReceived]);
 
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoEnabled, setIsVideoEnabled] = useState(false);
@@ -617,7 +639,7 @@ function InterviewActiveView({ onLeave, resumeName, jdPreview }) {
 /* ─────────────────────────────────────────────
    STEP 3: LIVE INTERVIEW VIEW (LiveKitRoom wrapper)
 ───────────────────────────────────────────── */
-const LiveInterviewStep = ({ selectedResume, selectedJD, onLeave }) => {
+const LiveInterviewStep = ({ selectedResume, selectedJD, onLeave, onSummaryReceived }) => {
   const [token, setToken] = useState('');
   const [serverUrl, setServerUrl] = useState('');
   const [connecting, setConnecting] = useState(true);
@@ -786,6 +808,7 @@ const LiveInterviewStep = ({ selectedResume, selectedJD, onLeave }) => {
             <RoomAudioRenderer />
             <InterviewActiveView
               onLeave={onLeave}
+              onSummaryReceived={onSummaryReceived}
               resumeName={resumeName}
               jdPreview={jdPreview}
             />
@@ -799,29 +822,110 @@ const LiveInterviewStep = ({ selectedResume, selectedJD, onLeave }) => {
 /* ─────────────────────────────────────────────
    END SCREEN
 ───────────────────────────────────────────── */
-const EndScreen = ({ onRestart }) => (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.95 }}
-    animate={{ opacity: 1, scale: 1 }}
-    className="flex flex-col items-center justify-center py-10 text-center max-w-md mx-auto"
-  >
-    <div className="w-20 h-20 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-6 mx-auto">
-      <Check className="w-10 h-10 text-emerald-400" />
-    </div>
-    <h2 className="text-2xl font-bold text-white mb-3">Interview Complete!</h2>
-    <p className="text-slate-400 leading-relaxed mb-8">
-      Great work! Your interview session has ended. The AI will generate a detailed assessment report based on your responses.
-    </p>
-    <div className="flex gap-3 w-full">
-      <button
-        onClick={onRestart}
-        className="flex-1 py-3.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-xl font-semibold hover:bg-slate-700 transition-all flex items-center justify-center gap-2"
-      >
-        <RefreshCw className="w-4 h-4" /> New Session
-      </button>
-    </div>
-  </motion.div>
-);
+const EndScreen = ({ summary, onRestart }) => {
+  if (!summary) return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="flex flex-col items-center justify-center py-10 text-center max-w-md mx-auto"
+    >
+      <div className="w-20 h-20 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center mb-6 mx-auto">
+        <Loader2 className="w-10 h-10 text-blue-400 animate-spin" />
+      </div>
+      <h2 className="text-2xl font-bold text-white mb-3">Processing Assessment...</h2>
+      <p className="text-slate-400 leading-relaxed mb-8">
+        The AI is finalizing your interview results. This will only take a moment.
+      </p>
+    </motion.div>
+  );
+
+  const data = summary?.summary || {};
+  const overall = data.summary || {};
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="w-full max-w-4xl mx-auto space-y-6 pb-20"
+    >
+      <div className="text-center mb-10">
+        <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-6 mx-auto">
+          <Check className="w-10 h-10 text-emerald-400" />
+        </div>
+        <h2 className="text-3xl font-bold text-white mb-2">Interview Complete</h2>
+        <p className="text-slate-400">Here is your detailed performance assessment from James.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { label: 'Technical Skills', score: data.technicalSkills?.score, icon: Bot, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+          { label: 'Communication', score: data.communication?.score, icon: MessageSquare, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+          { label: 'Problem Solving', score: data.problemSolving?.score, icon: Sparkles, color: 'text-emerald-400', bg: 'bg-emerald-500/10' }
+        ].map((item, idx) => (
+          <div key={idx} className="bg-slate-800/40 border border-slate-700/50 p-6 rounded-3xl text-center">
+            <div className={`w-12 h-12 ${item.bg} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
+              <item.icon className={`w-6 h-6 ${item.color}`} />
+            </div>
+            <p className="text-slate-400 text-sm font-medium mb-1">{item.label}</p>
+            <p className={`text-3xl font-bold ${item.color}`}>{item.score || '--'}%</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-slate-800/40 border border-slate-700/50 p-8 rounded-3xl">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="px-3 py-1 bg-blue-500/20 rounded-full text-blue-400 text-xs font-bold uppercase tracking-wider">
+            Recommendation: {overall.recommendation || 'N/A'}
+          </div>
+          <div className="flex-1 h-px bg-slate-700/50" />
+        </div>
+        
+        <h3 className="text-xl font-bold text-white mb-4">Overall Feedback</h3>
+        <p className="text-slate-300 leading-relaxed mb-8">
+          {overall.overallFeedback || 'Assessment generated based on your interview session.'}
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <h4 className="text-emerald-400 text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
+              <Check className="w-4 h-4" /> Key Strengths
+            </h4>
+            <ul className="space-y-3">
+              {(overall.keyStrengths || []).map((s, i) => (
+                <li key={i} className="flex items-start gap-3 bg-slate-900/40 p-3 rounded-2xl border border-slate-800/50 text-slate-300 text-sm">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                  {s}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-amber-400 text-sm font-bold uppercase tracking-wider mb-4 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" /> Areas for Growth
+            </h4>
+            <ul className="space-y-3">
+              {(overall.areasForImprovement || []).map((a, i) => (
+                <li key={i} className="flex items-start gap-3 bg-slate-900/40 p-3 rounded-2xl border border-slate-800/50 text-slate-300 text-sm">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                  {a}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div className="text-center pt-8">
+        <button
+          onClick={onRestart}
+          className="px-10 py-4 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl transition-all border border-slate-700 flex items-center gap-2 mx-auto"
+        >
+          <RefreshCw className="w-4 h-4" /> Return to Dashboard
+        </button>
+      </div>
+    </motion.div>
+  );
+};
 
 /* ─────────────────────────────────────────────
    MAIN COMPONENT
@@ -832,11 +936,13 @@ export default function MockInterview() {
   const [step, setStep] = useState(0); // 0=resume, 1=jd, 2=interview, 3=end
   const [selectedResume, setSelectedResume] = useState(null);
   const [selectedJD, setSelectedJD] = useState('');
+  const [interviewSummary, setInterviewSummary] = useState(null);
 
   const handleRestart = () => {
     setStep(0);
     setSelectedResume(null);
     setSelectedJD('');
+    setInterviewSummary(null);
   };
 
   return (
@@ -902,11 +1008,15 @@ export default function MockInterview() {
                 selectedResume={selectedResume}
                 selectedJD={selectedJD}
                 onLeave={() => setStep(3)}
+                onSummaryReceived={(data) => {
+                  setInterviewSummary(data);
+                  setStep(3);
+                }}
               />
             </motion.div>
           )}
           {step === 3 && (
-            <EndScreen key="end" onRestart={handleRestart} />
+            <EndScreen key="end" summary={interviewSummary} onRestart={handleRestart} />
           )}
         </AnimatePresence>
       </div>
