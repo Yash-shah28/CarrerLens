@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 
 try:
     from livekit.api import AccessToken, VideoGrants
-    from livekit.protocol.room import RoomConfiguration, RoomAgent
+    from livekit.protocol.room import RoomConfiguration
     from livekit.protocol.agent_dispatch import RoomAgentDispatch
     LIVEKIT_AVAILABLE = True
 except ImportError as e:
@@ -14,7 +14,6 @@ except ImportError as e:
     AccessToken = None
     VideoGrants = None
     RoomConfiguration = None
-    RoomAgent = None
     RoomAgentDispatch = None
 
 router = APIRouter(prefix="/interview", tags=["Interview"])
@@ -38,14 +37,11 @@ async def get_livekit_token(request: InterviewContextRequest):
         # Create RoomConfiguration with agents
         room_config = RoomConfiguration()
         
-        # Create a RoomAgent with the Interviewee agent dispatch
-        room_agent = RoomAgent()
+        # Create RoomAgentDispatch with the Interviewee agent name
+        # RoomConfiguration.agents expects RoomAgentDispatch objects directly
         dispatch = RoomAgentDispatch()
-        dispatch.agent_name = "Interviewee"
-        room_agent.dispatches.append(dispatch)
-        
-        # Add the room agent to the room configuration
-        room_config.agents.append(room_agent)
+        dispatch.agent_name = "Interviewee"  # Must match @server.rtc_session(agent_name="Interviewee")
+        room_config.agents.append(dispatch)
 
         # Pass resume and JD context to the Python agent via the LiveKit token metadata.
         # The agent reads this on participant join to dynamically customize its system prompt.
